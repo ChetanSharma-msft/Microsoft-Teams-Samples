@@ -24,7 +24,7 @@ const client = new OpenAIClient(azureAiApiEndpoint, new AzureKeyCredential(openA
 
 // Cosmos DB configuration.
 const cosmosEndpoint = process.env.CosmosDBEndpoint;
-const cosmosKey = process.env.CosmosDBKey; 
+const cosmosKey = process.env.CosmosDBKey;
 
 const cosmosClientOptions = {}; // Optional client options
 const cosmosClient = new CosmosClient({ endpoint: cosmosEndpoint, key: cosmosKey }, cosmosClientOptions);
@@ -45,8 +45,9 @@ app.listen(3978, function () {
   console.log('app listening on port 3978!');
 });
 
-app.get('/search', (req, res) => {
-  res.send(req.query);
+app.get('/search', async (req, res) => {
+  var result = semanticSearchDocumentsAsync(req.query.query);
+  res.send(result);
 });
 
 // Function to split text using RecursiveCharacterTextSplitter
@@ -165,9 +166,9 @@ async function parseOfficeFile(filePath, blobUrl, fileName) {
         });
 
         // await container.createDocuments(documentEmbedding);
-         // Insert the document into the Cosmos DB container
-         const { resource: createdItem } = await container.items.create(documentEmbedding);
-         console.log("Document created successfully:", createdItem);
+        // Insert the document into the Cosmos DB container
+        const { resource: createdItem } = await container.items.create(documentEmbedding);
+        console.log("Document created successfully:", createdItem);
 
         console.log("Embedding:", embedding);
         return records;
@@ -200,6 +201,38 @@ async function getEmbeddingAsync(content) {
     return embedding;
   } catch (error) {
     console.error("Error getting embeddings:", error);
+    throw error;
+  }
+}
+
+async function semanticSearchDocumentsAsync(query) {
+  try {
+    // Get embedding vector for the search query.
+    const embedding = await getEmbeddingAsync(query);
+    const similarityScore = 0.50;
+
+    // The SQL query
+    const queryText = `
+            SELECT TOP 5 c.contents, c.fileName, c.url,
+            VectorDistance(c.vectors, @vectors, false) as similarityScore
+            FROM c
+            WHERE VectorDistance(c.vectors, @vectors, false) > @similarityScore`;
+
+    const querySpec = {
+      query: queryText,
+      parameters: [
+        { name: "@vectors", value: embedding },
+        { name: "@similarityScore", value: similarityScore }
+      ]
+    };
+
+    // Fetch the top 5 results directly
+    const { resources } = await container.items.query(querySpec).fetchAll();
+    var result = resources.sort((a, b) => b.similarityScore - a.similarityScore);
+
+    return result;
+  } catch (error) {
+    console.error("Error during semantic search:", error);
     throw error;
   }
 }
