@@ -9,6 +9,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { CosmosClient } = require("@azure/cosmos");
 require('dotenv').config();
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 // Azure Storage connection string and container name.
 const azureStorageConnString = process.env.AzureStorageDBConnString;
@@ -45,90 +46,134 @@ app.listen(3978, function () {
   console.log('app listening on port 3978!');
 });
 
+/**
+ * Endpoint to perform a semantic search on documents.
+ */
 app.get('/search', async (req, res) => {
-  var result = semanticSearchDocumentsAsync(req.query.query);
-  res.send(result);
+  try {
+    // Perform semantic search using the query parameter from the request
+    const result = await semanticSearchDocumentsAsync(req.query.query);
+
+    // Send the search result as the response
+    res.send(result);
+  } catch (error) {
+    // Log and send an error response if the search fails
+    console.error("Error during semantic search:", error);
+    res.status(500).send("Error during semantic search");
+  }
 });
 
-// Function to split text using RecursiveCharacterTextSplitter
+/**
+ * Function to split the text content of a file into smaller chunks.
+ *
+ * @param {string} fileContentsAsString - The content of the file as a single string.
+ * @returns {Array} - An array of objects, each containing a chunk of the original text.
+ * @throws Will throw an error if text splitting fails.
+ */
 async function splitText(fileContentsAsString) {
+  // Create an instance of the RecursiveCharacterTextSplitter with specified options
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: 500,
     chunkOverlap: 5,
     separators: ['\n\n', '\n', ' ', '']
   });
 
+  // Split the file content into smaller chunks and return the result
   return await splitter.createDocuments([fileContentsAsString]);
 }
 
+/**
+ * Function to list all blobs in a container and retrieve their URLs.
+ *
+ * @returns {Array} - An array containing URLs of all blobs in the container.
+ * @throws Will throw an error if listing blobs fails.
+ */
 async function listBlobs() {
-  // Create the BlobServiceClient object
-  const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
-
-  // Get the container client
-  const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
-
-  // List all blobs in the container and get their URLs
-  const blobUrls = [];
-  for await (const blob of containerClient.listBlobsFlat()) {
-    // Construct the blob URL
-    const blobUrl = `${containerClient.url}/${blob.name}`;
-    blobUrls.push(blobUrl);
-
-    // console.log(blobUrl);
-  }
-
-  //// Remove duplicates using a Set
-  //const uniqueBlobUrls = new Set(blobUrls);
-
-  //// Convert back to an array if needed
-  //const uniqueBlobUrlsList = Array.from(uniqueBlobUrls);
-
-  return blobUrls;
-}
-
-app.get('/getblobs', async (req, res) => {
-  listBlobs().then((blobUrls) => {
-    // console.log("Blob URLs:", blobUrls);
-
-    // Usage example:
-    const blobUrl = blobUrls[0];
-    const blobName = path.basename(blobUrl);
-    const downloadFilePath = path.join(__dirname, blobName);
-
+  try {
     // Create the BlobServiceClient object
     const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
 
     // Get the container client
     const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
 
-    downloadBlobToLocal(containerClient, blobName, downloadFilePath);
-
-    if (fs.existsSync(downloadFilePath)) {
-      // Example usage of parseOfficeFile function
-      const result = parseOfficeFile(downloadFilePath, blobUrl, blobName);
-      res.send(result);
-    } else {
-      console.error(`File ${downloadFilePath} does not exist!`);
-      res.status(404).send(`File ${downloadFilePath} does not exist!`);
+    // List all blobs in the container and get their URLs
+    const blobUrls = [];
+    for await (const blob of containerClient.listBlobsFlat()) {
+      // Construct the blob URL
+      const blobUrl = `${containerClient.url}/${blob.name}`;
+      blobUrls.push(blobUrl);
     }
-  }).catch((error) => {
+
+    return blobUrls;
+  } catch (error) {
     console.error("Error listing blobs:", error);
-    res.status(500).send("An error occurred while processing your request.");
-  });
-
-  // return listBlobs().then((blobUrls) => {
-  //   res.send(blobUrls);
-  // });
-});
-
-async function downloadBlobToLocal(containerClient, blobName, downloadFilePath) {
-  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-  await blockBlobClient.downloadToFile(downloadFilePath);
-  // console.log(`Downloaded blob content to ${downloadFilePath}`);
+    throw error;
+  }
 }
 
-// Function to parse the office file
+app.get('/getblobs', async (req, res) => {
+  try {
+    const blobUrls = await listBlobs();
+
+    if (blobUrls.length === 0) {
+      res.status(404).send('No blobs found.');
+      return;
+    }
+
+    for (const blobUrl of blobUrls) {
+      try {
+        // const blobUrl = blobUrls[0];
+        const blobName = path.basename(blobUrl);
+        const downloadFilePath = path.join(__dirname, blobName);
+
+        const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
+        const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
+
+        await downloadBlobToLocal(containerClient, blobName, downloadFilePath);
+
+        if (fs.existsSync(downloadFilePath)) {
+          const result = await parseOfficeFile(downloadFilePath, blobUrl, blobName);
+          res.send(result);
+        } else {
+          console.error(`File ${downloadFilePath} does not exist!`);
+          res.status(404).send(`File ${downloadFilePath} does not exist!`);
+        }
+      } catch (error) {
+        console.error(`Failed to process blob ${blobUrl}:`, error);
+      }
+    }
+
+  } catch (error) {
+    console.error("Error processing request:", error);
+    res.status(500).send("An error occurred while processing your request.");
+  }
+});
+
+
+/**
+ * Function to download a blob from a container to a local file.
+ *
+ * @param {Object} containerClient - The container client used to access the blob.
+ * @param {string} blobName - The name of the blob to download.
+ * @param {string} downloadFilePath - The local file path where the blob will be downloaded.
+ * @returns {Promise<void>} - A promise that resolves when the blob has been downloaded.
+ */
+async function downloadBlobToLocal(containerClient, blobName, downloadFilePath) {
+  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+  // Download the blob to a local file
+  await blockBlobClient.downloadToFile(downloadFilePath);
+}
+
+/**
+ * Function to parse an office file, split the text, and store the parsed data along with embeddings in a database.
+ *
+ * @param {string} filePath - The path to the office file.
+ * @param {string} blobUrl - The URL of the blob storage where the file is stored.
+ * @param {string} fileName - The name of the file.
+ * @returns {Array} - An array of records containing similarity score, file name, URL, and contents.
+ * @throws Will throw an error if parsing or embedding retrieval fails.
+ */
 async function parseOfficeFile(filePath, blobUrl, fileName) {
   try {
     // Parse the office file asynchronously
@@ -155,17 +200,15 @@ async function parseOfficeFile(filePath, blobUrl, fileName) {
           fileName: fileName,
           url: blobUrl,
           vectors: Array.from(embedding), // Assuming embedding is already an array
-          // similarityScore: 0.0
         };
 
         records.push({
-          SimilarityScore: 0.0,
+          // SimilarityScore: 0.0,
           FileName: fileName,
           Url: blobUrl,
           Contents: item.pageContent
         });
 
-        // await container.createDocuments(documentEmbedding);
         // Insert the document into the Cosmos DB container
         const { resource: createdItem } = await container.items.create(documentEmbedding);
         console.log("Document created successfully:", createdItem);
@@ -184,16 +227,20 @@ async function parseOfficeFile(filePath, blobUrl, fileName) {
   }
 }
 
-// Function to get embedding asynchronously
+/**
+ * Function to get the embedding vector for a given content.
+ * It calls an API to generate the embedding for the provided content.
+ *
+ * @param {string} content - The content for which to generate an embedding.
+ * @returns {Array} - The generated embedding vector.
+ * @throws Will throw an error if the API call fails.
+ */
 async function getEmbeddingAsync(content) {
-  const embeddingsOptions = {
-    deploymentName: openAIDeploymentName,
-    input: [content],
-  };
 
   try {
     // Call the API to get embeddings
     const response = await client.getEmbeddings(openAIDeploymentName, [content]);
+
     // The response includes the generated embedding
     const item = response.data[0];
     const embedding = item.embedding;
@@ -205,18 +252,26 @@ async function getEmbeddingAsync(content) {
   }
 }
 
+/**
+ * Function to perform a semantic search on documents.
+ * It retrieves the top 5 most similar documents based on the provided query.
+ *
+ * @param {string} query - The search query for which to find similar documents.
+ * @returns {Array} - A sorted array of the top 5 most similar documents.
+ * @throws Will throw an error if the search fails.
+ */
 async function semanticSearchDocumentsAsync(query) {
   try {
     // Get embedding vector for the search query.
     const embedding = await getEmbeddingAsync(query);
     const similarityScore = 0.50;
 
-    // The SQL query
+    // The SQL query to find the top 5 most similar documents
     const queryText = `
-            SELECT TOP 5 c.contents, c.fileName, c.url,
-            VectorDistance(c.vectors, @vectors, false) as similarityScore
-            FROM c
-            WHERE VectorDistance(c.vectors, @vectors, false) > @similarityScore`;
+      SELECT TOP 5 c.contents, c.fileName, c.url,
+      VectorDistance(c.vectors, @vectors, false) as similarityScore
+      FROM c
+      WHERE VectorDistance(c.vectors, @vectors, false) > @similarityScore`;
 
     const querySpec = {
       query: queryText,
