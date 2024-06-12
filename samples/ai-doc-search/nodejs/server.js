@@ -9,7 +9,6 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { CosmosClient } = require("@azure/cosmos");
 require('dotenv').config();
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 // Azure Storage connection string and container name.
 const azureStorageConnString = process.env.AzureStorageDBConnString;
@@ -120,6 +119,9 @@ app.get('/getblobs', async (req, res) => {
       return;
     }
 
+    // Define the list of allowed extensions
+    const allowedExtensions = ['.docx', '.pdf'];
+
     for (const blobUrl of blobUrls) {
       try {
         // const blobUrl = blobUrls[0];
@@ -132,8 +134,24 @@ app.get('/getblobs', async (req, res) => {
         await downloadBlobToLocal(containerClient, blobName, downloadFilePath);
 
         if (fs.existsSync(downloadFilePath)) {
-          const result = await parseOfficeFile(downloadFilePath, blobUrl, blobName);
-          res.send(result);
+          const extension = path.extname(blobName);
+          if (extension === '.txt') {
+            const fileContents = await readFileContents(downloadFilePath);
+            const fileChunks = await createFileChunks(fileContents);
+
+            console.log(`FileName ${blobName}, Chunks ${fileChunks.length}`);
+            console.log(`=================================================`);
+
+            await createEmbeddings(fileChunks, blobUrl, blobName);
+            // createEmbeddings(fileChunks, blobUrl, blobName);
+          } else {
+            // Check if the extension is in the allowed list
+            if (allowedExtensions.includes(extension)) {
+              await parseOfficeFile(downloadFilePath, blobUrl, blobName);
+            } else {
+              res.status(404).send(`${blobName} is not one of the allowed file types.`);
+            }
+          }
         } else {
           console.error(`File ${downloadFilePath} does not exist!`);
           res.status(404).send(`File ${downloadFilePath} does not exist!`);
@@ -143,12 +161,13 @@ app.get('/getblobs', async (req, res) => {
       }
     }
 
+    res.status(200).send("File chunks and embeddings are create successfully!");
+
   } catch (error) {
     console.error("Error processing request:", error);
     res.status(500).send("An error occurred while processing your request.");
   }
 });
-
 
 /**
  * Function to download a blob from a container to a local file.
@@ -183,6 +202,9 @@ async function parseOfficeFile(filePath, blobUrl, fileName) {
     const result = await splitText(data);
     const records = [];
 
+    console.log(`FileName ${fileName}, Chunks ${result.length}`);
+    console.log(`=================================================`);
+
     // Log the result and get embeddings for each item
     for (const item of result) {
       console.log(item.pageContent);
@@ -211,10 +233,11 @@ async function parseOfficeFile(filePath, blobUrl, fileName) {
 
         // Insert the document into the Cosmos DB container
         const { resource: createdItem } = await container.items.create(documentEmbedding);
-        console.log("Document created successfully:", createdItem);
+        // console.log("Document created successfully:", createdItem);
+        // console.log("Document created successfully:", createdItem.contents);
 
-        console.log("Embedding:", embedding);
-        return records;
+        // console.log("Embedding:", embedding);
+        // return records;
       } catch (error) {
         console.error("Error getting embedding:", error);
       }
@@ -289,5 +312,86 @@ async function semanticSearchDocumentsAsync(query) {
   } catch (error) {
     console.error("Error during semantic search:", error);
     throw error;
+  }
+}
+
+async function createFileChunks(fileContentsAsString) {
+  try {
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 400,
+      chunkOverlap: 20,
+      separators: ['\n\n', '\n', ' ', '']
+    });
+
+    const fileChunks = await splitter.createDocuments([fileContentsAsString]);
+    // Generate embeddings for file chunks here or perform other operations
+    console.log('File chunks:', fileChunks);
+    console.log(`=================================================`);
+    return fileChunks; // Return or process the file chunks as needed
+  } catch (error) {
+    console.error('Error processing file contents:', error);
+    throw error; // Rethrow the error for handling at a higher level if necessary
+  }
+}
+
+function readFileContents(filePath) {
+  return new Promise((resolve, reject) => {
+    fs.readFile(filePath, 'utf8', (err, data) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(data);
+    });
+  });
+}
+
+async function createEmbeddings(fileChunks, blobUrl, fileName) {
+  try {
+
+    const records = [];
+
+    // Log the result and get embeddings for each item
+    for (const chunk of fileChunks) {
+      console.log(chunk);
+      console.log("====================================");
+
+      // Get embedding for the current item
+      try {
+        const embedding = await getEmbeddingAsync(chunk.pageContent);
+
+        // Create the DocumentEmbeddingDetail object
+        const documentEmbedding = {
+          id: uuidv4(), // Ensure the item has a unique 'id'
+          partitionKey: "teamid", // Adjust based on your partition key strategy
+          contents: chunk.pageContent,
+          fileName: fileName,
+          url: blobUrl,
+          vectors: Array.from(embedding), // Assuming embedding is already an array
+        };
+
+        records.push({
+          // SimilarityScore: 0.0,
+          FileName: fileName,
+          Url: blobUrl,
+          Contents: chunk.pageContent
+        });
+
+        // Insert the document into the Cosmos DB container
+        const { resource: createdItem } = await container.items.create(documentEmbedding);
+        // console.log("Document created successfully:", createdItem);
+        // console.log("Document created successfully:", createdItem.contents);
+
+        // console.log("Embedding:", embedding);
+        // return records;
+      } catch (error) {
+        console.error("Error getting embedding:", error);
+      }
+    }
+
+    return records;
+  } catch (err) {
+    // Handle parsing error
+    console.error("Error parsing office file:", err);
   }
 }
