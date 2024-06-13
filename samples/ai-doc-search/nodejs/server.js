@@ -110,7 +110,7 @@ async function listBlobs() {
   }
 }
 
-app.get('/getblobs', async (req, res) => {
+app.get('/createFilesEmbeddings', async (req, res) => {
   try {
     const blobUrls = await listBlobs();
 
@@ -144,6 +144,7 @@ app.get('/getblobs', async (req, res) => {
 
             await createEmbeddings(fileChunks, blobUrl, blobName);
             // createEmbeddings(fileChunks, blobUrl, blobName);
+            // Call the async function to delete the file
           } else {
             // Check if the extension is in the allowed list
             if (allowedExtensions.includes(extension)) {
@@ -156,6 +157,20 @@ app.get('/getblobs', async (req, res) => {
           console.error(`File ${downloadFilePath} does not exist!`);
           res.status(404).send(`File ${downloadFilePath} does not exist!`);
         }
+
+        // Replace double backslashes with single backslashes
+        // var filePath = downloadFilePath.replace(/\\\\/g, '\\');
+        var filePath = downloadFilePath.replace(/\\/g, '/');
+
+        // Delete the file after processing.
+        fs.unlink(downloadFilePath, (err) => {
+          if (err) {
+            console.error(`Failed to delete file: ${filePath}`, err); // Log an error message if deletion fails
+          } else {
+            console.log(`File deleted successfully: ${filePath}`); // Log the path of the deleted file
+          }
+        });
+
       } catch (error) {
         console.error(`Failed to process blob ${blobUrl}:`, error);
       }
@@ -166,6 +181,27 @@ app.get('/getblobs', async (req, res) => {
   } catch (error) {
     console.error("Error processing request:", error);
     res.status(500).send("An error occurred while processing your request.");
+  }
+});
+
+/**
+ * Endpoint to perform a semantic search on documents.
+ */
+app.get('/deleteAllItems', async (req, res) => {
+  try {
+    const { resources: items } = await container.items.readAll().fetchAll();
+
+    for (const item of items) {
+      await container.item(item.id).delete();
+      console.log(`Deleted item with id: ${item.id}`);
+    }
+
+    console.log('All items deleted successfully.');
+    res.status(200).send('All items deleted successfully.');
+
+  } catch (error) {
+    res.status(500).send('Error occurred while delting all items from CosmosDB.');
+    console.error('Error occurred while delting all items from CosmosDB.');
   }
 });
 
