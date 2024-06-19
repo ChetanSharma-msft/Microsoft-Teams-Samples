@@ -90,15 +90,16 @@ async function InitiateEmbeddings(blobUrl, context) {
       const blobName = path.basename(blobUrl);
       const downloadFilePath = path.join(__dirname, blobName);
 
-      const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
-      const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
+      // const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
+      // const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
 
-      await downloadBlobToLocal(containerClient, blobName, downloadFilePath);
+      // await downloadBlobToLocal(containerClient, blobName, downloadFilePath);
 
-      if (fs.existsSync(downloadFilePath)) {
+      // if (fs.existsSync(downloadFilePath)) {
         const extension = path.extname(blobName);
         if (extension === '.txt') {
-          const fileContents = await readFileContents(downloadFilePath);
+          // const fileContents = await readFileContents(downloadFilePath);
+          const fileContents = await readBlobContents(blobUrl);
           const fileChunks = await createFileChunks(fileContents, context);
 
           context.log(`FileName ${blobName}, Chunks ${fileChunks.length}`);
@@ -118,26 +119,26 @@ async function InitiateEmbeddings(blobUrl, context) {
             appInsightsClient.trackEvent({ name: "BlobNotAllowed", properties: { blobName } });
           }
         }
-      } else {
-        context.log(`File ${downloadFilePath} does not exist!`);
-        console.error(`File ${downloadFilePath} does not exist!`);
-        appInsightsClient.trackEvent({ name: "FileNotDownloaded", properties: { downloadFilePath } });
-      }
+      // } else {
+      //   context.log(`File ${downloadFilePath} does not exist!`);
+      //   console.error(`File ${downloadFilePath} does not exist!`);
+      //   appInsightsClient.trackEvent({ name: "FileNotDownloaded", properties: { downloadFilePath } });
+      // }
 
       // Replace double backslashes with single backslashes
       // var filePath = downloadFilePath.replace(/\\\\/g, '\\');
-      var filePath = downloadFilePath.replace(/\\/g, '/');
+      // var filePath = downloadFilePath.replace(/\\/g, '/');
 
       // Delete the file after processing.
-      fs.unlink(downloadFilePath, (err) => {
-        if (err) {
-          console.error(`Failed to delete file: ${filePath}`, err); // Log an error message if deletion fails
-          appInsightsClient.trackEvent({ name: "FailedToDeleteLocalFile", properties: { filePath } });
-        } else {
-          console.log(`File deleted successfully: ${filePath}`); // Log the path of the deleted file
-          appInsightsClient.trackEvent({ name: "LocalFileDeletedSuccessfully", properties: { err, filePath } });
-        }
-      });
+      // fs.unlink(downloadFilePath, (err) => {
+      //   if (err) {
+      //     console.error(`Failed to delete file: ${filePath}`, err); // Log an error message if deletion fails
+      //     appInsightsClient.trackEvent({ name: "FailedToDeleteLocalFile", properties: { filePath } });
+      //   } else {
+      //     console.log(`File deleted successfully: ${filePath}`); // Log the path of the deleted file
+      //     appInsightsClient.trackEvent({ name: "LocalFileDeletedSuccessfully", properties: { err, filePath } });
+      //   }
+      // });
 
     } catch (error) {
       context.log(`Failed to process blob ${blobUrl}:`, error);
@@ -179,6 +180,7 @@ async function parseOfficeFile(filePath, blobUrl, fileName, context) {
   try {
     // Parse the office file asynchronously
     const data = await officeParser.parseOfficeAsync(filePath);
+    // const data = await readBlobContents(blobUrl);
 
     // Split the parsed text
     const result = await splitText(data);
@@ -341,6 +343,46 @@ async function createEmbeddings(fileChunks, blobUrl, fileName, context) {
     context.log("Error parsing office file:", err);
     console.error("Error parsing office file:", err);
   }
+}
+
+async function readBlobContents(blobUrl) {
+  try {
+    const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
+    const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
+
+    const blobName = getBlobNameFromUrl(blobUrl);
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    // Download blob content as a buffer
+    const downloadBlockBlobResponse = await blockBlobClient.download();
+    const blobContentBuffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
+
+    // Convert buffer to string (assuming utf8 encoding)
+    const blobContentString = blobContentBuffer.toString('utf8');
+
+    return blobContentString;
+  } catch (error) {
+    console.error("Error reading blob contents:", error);
+    throw error;
+  }
+}
+
+// Helper function to convert readable stream to buffer.
+async function streamToBuffer(readableStream) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    readableStream.on('data', (data) => {
+      chunks.push(data instanceof Buffer ? data : Buffer.from(data));
+    });
+    readableStream.on('end', () => {
+      resolve(Buffer.concat(chunks));
+    });
+    readableStream.on('error', reject);
+  });
+}
+
+function getBlobNameFromUrl(blobUrl) {
+  return path.basename(blobUrl);
 }
 
 module.exports = {
