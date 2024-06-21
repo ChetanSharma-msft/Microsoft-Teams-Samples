@@ -1,15 +1,14 @@
 // Import necessary libraries and modules
 
-const { OpenAIClient, AzureKeyCredential } = require("@azure/openai"); // Import Azure OpenAI SDK
-const { RecursiveCharacterTextSplitter } = require('langchain/text_splitter'); // Import the RecursiveCharacterTextSplitter
+const { OpenAIClient, AzureKeyCredential } = require("@azure/openai");
+const { RecursiveCharacterTextSplitter } = require('langchain/text_splitter');
 const { BlobServiceClient } = require('@azure/storage-blob');
-const officeParser = require('officeparser');
 const pdfParse = require('pdf-parse');
-const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { CosmosClient } = require("@azure/cosmos");
 require('dotenv').config();
+const WordExtractor = require("word-extractor");
 
 const appInsights = require('applicationinsights');
 
@@ -83,23 +82,12 @@ async function splitText(fileContentsAsString) {
  */
 async function InitiateEmbeddings(blobUrl, context) {
   try {
-
-    // Define the list of allowed extensions
-    const allowedExtensions = ['.docx', '.pdf'];
-
     try {
       const blobName = path.basename(blobUrl);
       const downloadFilePath = path.join(__dirname, blobName);
 
-      // const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
-      // const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
-
-      // await downloadBlobToLocal(containerClient, blobName, downloadFilePath);
-
-      // if (fs.existsSync(downloadFilePath)) {
       const extension = path.extname(blobName).toLowerCase();
       if (extension === '.txt') {
-        // const fileContents = await readFileContents(downloadFilePath);
         const fileContents = await readBlobContents(blobUrl);
         const fileChunks = await createFileChunks(fileContents, context);
 
@@ -108,8 +96,6 @@ async function InitiateEmbeddings(blobUrl, context) {
         console.log(`=================================================`);
 
         await createEmbeddings(fileChunks, blobUrl, blobName, context);
-        // createEmbeddings(fileChunks, blobUrl, blobName);
-        // Call the async function to delete the file
       }
       else if (extension === '.pdf') {
         const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
@@ -123,7 +109,7 @@ async function InitiateEmbeddings(blobUrl, context) {
         const blobContentBuffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
 
         fileContent = await readPdfContent(blobContentBuffer);
-        await parseOfficeFile(downloadFilePath, blobUrl, blobName, context, fileContent);
+        await parseOfficeFile(blobUrl, blobName, context, fileContent);
       } else if (extension === '.docx') {
         const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
         const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
@@ -135,46 +121,19 @@ async function InitiateEmbeddings(blobUrl, context) {
         const downloadBlockBlobResponse = await blockBlobClient.download();
         const blobContentBuffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
 
-        fileContent = await readDocxContent(blobContentBuffer);
-        await parseOfficeFile(downloadFilePath, blobUrl, blobName, context, fileContent);
+        const extractor = new WordExtractor();
+        const extracted = extractor.extract(blobContentBuffer);
+
+        extracted.then(async function (doc) {
+          console.log(doc.getBody());
+          await parseOfficeFile(blobUrl, blobName, context, doc.getBody());
+        });
       }
       else {
         context.log(`${blobName} is not one of the allowed file types.`);
         console.log(`${blobName} is not one of the allowed file types.`);
         appInsightsClient.trackEvent({ name: "BlobNotAllowed", properties: { blobName } });
       }
-      // else {
-      //   // Check if the extension is in the allowed list
-      //   if (allowedExtensions.includes(extension)) {
-      //     await parseOfficeFile(downloadFilePath, blobUrl, blobName, context);
-      //   } 
-      //   else {
-      //     context.log(`${blobName} is not one of the allowed file types.`);
-      //     console.log(`${blobName} is not one of the allowed file types.`);
-      //     appInsightsClient.trackEvent({ name: "BlobNotAllowed", properties: { blobName } });
-      //   }
-      // }
-      // } else {
-      //   context.log(`File ${downloadFilePath} does not exist!`);
-      //   console.error(`File ${downloadFilePath} does not exist!`);
-      //   appInsightsClient.trackEvent({ name: "FileNotDownloaded", properties: { downloadFilePath } });
-      // }
-
-      // Replace double backslashes with single backslashes
-      // var filePath = downloadFilePath.replace(/\\\\/g, '\\');
-      // var filePath = downloadFilePath.replace(/\\/g, '/');
-
-      // Delete the file after processing.
-      // fs.unlink(downloadFilePath, (err) => {
-      //   if (err) {
-      //     console.error(`Failed to delete file: ${filePath}`, err); // Log an error message if deletion fails
-      //     appInsightsClient.trackEvent({ name: "FailedToDeleteLocalFile", properties: { filePath } });
-      //   } else {
-      //     console.log(`File deleted successfully: ${filePath}`); // Log the path of the deleted file
-      //     appInsightsClient.trackEvent({ name: "LocalFileDeletedSuccessfully", properties: { err, filePath } });
-      //   }
-      // });
-
     } catch (error) {
       context.log(`Failed to process blob ${blobUrl}:`, error);
       console.error(`Failed to process blob ${blobUrl}:`, error);
@@ -188,21 +147,6 @@ async function InitiateEmbeddings(blobUrl, context) {
 }
 
 /**
- * Function to download a blob from a container to a local file.
- *
- * @param {Object} containerClient - The container client used to access the blob.
- * @param {string} blobName - The name of the blob to download.
- * @param {string} downloadFilePath - The local file path where the blob will be downloaded.
- * @returns {Promise<void>} - A promise that resolves when the blob has been downloaded.
- */
-async function downloadBlobToLocal(containerClient, blobName, downloadFilePath) {
-  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-
-  // Download the blob to a local file
-  await blockBlobClient.downloadToFile(downloadFilePath);
-}
-
-/**
  * Function to parse an office file, split the text, and store the parsed data along with embeddings in a database.
  *
  * @param {string} filePath - The path to the office file.
@@ -211,12 +155,8 @@ async function downloadBlobToLocal(containerClient, blobName, downloadFilePath) 
  * @returns {Array} - An array of records containing similarity score, file name, URL, and contents.
  * @throws Will throw an error if parsing or embedding retrieval fails.
  */
-async function parseOfficeFile(filePath, blobUrl, fileName, context, data) {
+async function parseOfficeFile(blobUrl, fileName, context, data) {
   try {
-    // Parse the office file asynchronously
-    // const data = await officeParser.parseOfficeAsync(filePath);
-    // const data = await readBlobContents(blobUrl);
-
     // Split the parsed text
     const result = await splitText(data);
     const records = [];
@@ -226,7 +166,6 @@ async function parseOfficeFile(filePath, blobUrl, fileName, context, data) {
 
     // Log the result and get embeddings for each item
     for (const item of result) {
-      context.log(item.pageContent);
       console.log(item.pageContent);
       console.log("====================================");
       // Get embedding for the current item
@@ -313,18 +252,6 @@ async function createFileChunks(fileContentsAsString, context) {
     console.error('Error processing file contents:', error);
     throw error; // Rethrow the error for handling at a higher level if necessary
   }
-}
-
-async function readFileContents(filePath) {
-  return new Promise((resolve, reject) => {
-    fs.readFile(filePath, 'utf8', (err, data) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(data);
-    });
-  });
 }
 
 async function createEmbeddings(fileChunks, blobUrl, fileName, context) {
@@ -429,20 +356,6 @@ async function readPdfContent(buffer) {
     console.error("Error reading PDF content:", error);
     throw error;
   }
-}
-
-// Function to read DOCX content using officeparser
-async function readDocxContent(buffer) {
-  return new Promise((resolve, reject) => {
-    officeParser.parseOfficeAsync(buffer, (err, data) => {
-      if (err) {
-        console.error("Error reading DOCX content:", err);
-        reject(err);
-        return;
-      }
-      resolve(data);
-    });
-  });
 }
 
 module.exports = {
