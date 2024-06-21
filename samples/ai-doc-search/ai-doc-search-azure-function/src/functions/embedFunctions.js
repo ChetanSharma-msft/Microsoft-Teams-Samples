@@ -9,13 +9,12 @@ const { v4: uuidv4 } = require('uuid');
 const { CosmosClient } = require("@azure/cosmos");
 require('dotenv').config();
 const WordExtractor = require("word-extractor");
-
 const appInsights = require('applicationinsights');
 
 // Configure Application Insights with your instrumentation key or connection string
 const instrumentationKey = process.env.APPINSIGHTS_INSTRUMENTATIONKEY;
 
-// Or use connection string
+// Connection string
 const connectionString = process.env.APPINSIGHTS_CONNECTIONSTRING;
 
 appInsights.setup(connectionString || instrumentationKey)
@@ -39,7 +38,7 @@ const openAIApiKey = process.env.AzureOpenAIApiKey;
 const openAIDeploymentName = process.env.AzureOpenAIDeploymentName; // Ensure this is correct
 
 // Create an instance of the Azure OpenAI client
-const client = new OpenAIClient(azureAiApiEndpoint, new AzureKeyCredential(openAIApiKey));
+const azureOpenAIClient = new OpenAIClient(azureAiApiEndpoint, new AzureKeyCredential(openAIApiKey));
 
 // Cosmos DB configuration.
 const cosmosEndpoint = process.env.CosmosDBEndpoint;
@@ -65,8 +64,8 @@ const container = cosmosClient.database(databaseId).container(containerId);
 async function splitText(fileContentsAsString) {
   // Create an instance of the RecursiveCharacterTextSplitter with specified options
   const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 500,
-    chunkOverlap: 5,
+    chunkSize: 800,
+    chunkOverlap: 10,
     separators: ['\n\n', '\n', ' ', '']
   });
 
@@ -82,66 +81,59 @@ async function splitText(fileContentsAsString) {
  */
 async function InitiateEmbeddings(blobUrl, context) {
   try {
-    try {
-      const blobName = path.basename(blobUrl);
-      const downloadFilePath = path.join(__dirname, blobName);
+    const blobName = path.basename(blobUrl);
 
-      const extension = path.extname(blobName).toLowerCase();
-      if (extension === '.txt') {
-        const fileContents = await readBlobContents(blobUrl);
-        const fileChunks = await createFileChunks(fileContents, context);
+    const extension = path.extname(blobName).toLowerCase();
+    if (extension === '.txt') {
+      const fileContents = await readBlobContents(blobUrl);
+      const fileChunks = await createFileChunks(fileContents, context);
 
-        context.log(`FileName ${blobName}, Chunks ${fileChunks.length}`);
-        console.log(`FileName ${blobName}, Chunks ${fileChunks.length}`);
-        console.log(`=================================================`);
+      context.log(`FileName ${blobName}, Chunks ${fileChunks.length}`);
+      console.log(`FileName ${blobName}, Chunks ${fileChunks.length}`);
+      console.log(`=================================================`);
 
-        await createEmbeddings(fileChunks, blobUrl, blobName, context);
-      }
-      else if (extension === '.pdf') {
-        const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
-        const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
+      await createEmbeddings(fileChunks, blobUrl, blobName, context);
+    }
+    else if (extension === '.pdf') {
+      const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
+      const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
 
-        const blobName = getBlobNameFromUrl(blobUrl);
-        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+      const blobName = getBlobNameFromUrl(blobUrl);
+      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
-        // Download blob content as a buffer
-        const downloadBlockBlobResponse = await blockBlobClient.download();
-        const blobContentBuffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
+      // Download blob content as a buffer
+      const downloadBlockBlobResponse = await blockBlobClient.download();
+      const blobContentBuffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
 
-        fileContent = await readPdfContent(blobContentBuffer);
-        await parseOfficeFile(blobUrl, blobName, context, fileContent);
-      } else if (extension === '.docx') {
-        const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
-        const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
+      fileContent = await readPdfContent(blobContentBuffer);
+      await parseOfficeFile(blobUrl, blobName, context, fileContent);
+    } else if (extension === '.docx') {
+      const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
+      const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
 
-        const blobName = getBlobNameFromUrl(blobUrl);
-        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+      const blobName = getBlobNameFromUrl(blobUrl);
+      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
-        // Download blob content as a buffer
-        const downloadBlockBlobResponse = await blockBlobClient.download();
-        const blobContentBuffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
+      // Download blob content as a buffer
+      const downloadBlockBlobResponse = await blockBlobClient.download();
+      const blobContentBuffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
 
-        const extractor = new WordExtractor();
-        const extracted = extractor.extract(blobContentBuffer);
+      const extractor = new WordExtractor();
+      const extracted = extractor.extract(blobContentBuffer);
 
-        extracted.then(async function (doc) {
-          console.log(doc.getBody());
-          await parseOfficeFile(blobUrl, blobName, context, doc.getBody());
-        });
-      }
-      else {
-        context.log(`${blobName} is not one of the allowed file types.`);
-        console.log(`${blobName} is not one of the allowed file types.`);
-        appInsightsClient.trackEvent({ name: "BlobNotAllowed", properties: { blobName } });
-      }
-    } catch (error) {
-      context.log(`Failed to process blob ${blobUrl}:`, error);
-      console.error(`Failed to process blob ${blobUrl}:`, error);
-      appInsightsClient.trackException({ exception: error, properties: { blobUrl } });
+      extracted.then(async function (doc) {
+        console.log(doc.getBody());
+        await parseOfficeFile(blobUrl, blobName, context, doc.getBody());
+      });
+    }
+    else {
+      context.log(`${blobName} is not one of the allowed file types.`);
+      console.log(`${blobName} is not one of the allowed file types.`);
+      appInsightsClient.trackEvent({ name: "BlobNotAllowed", properties: { blobName } });
     }
   } catch (error) {
-    context.log("An error occurred while processing your request:", error);
-    console.error("An error occurred while processing your request:", error);
+    context.log(`Failed to process blob ${blobUrl}:`, error);
+    console.error(`Failed to process blob ${blobUrl}:`, error);
     appInsightsClient.trackException({ exception: error, properties: { blobUrl } });
   }
 }
@@ -149,7 +141,6 @@ async function InitiateEmbeddings(blobUrl, context) {
 /**
  * Function to parse an office file, split the text, and store the parsed data along with embeddings in a database.
  *
- * @param {string} filePath - The path to the office file.
  * @param {string} blobUrl - The URL of the blob storage where the file is stored.
  * @param {string} fileName - The name of the file.
  * @returns {Array} - An array of records containing similarity score, file name, URL, and contents.
@@ -212,14 +203,13 @@ async function parseOfficeFile(blobUrl, fileName, context, data) {
  * It calls an API to generate the embedding for the provided content.
  *
  * @param {string} content - The content for which to generate an embedding.
- * @returns {Array} - The generated embedding vector.
  * @throws Will throw an error if the API call fails.
  */
 async function getEmbeddingAsync(content) {
 
   try {
     // Call the API to get embeddings
-    const response = await client.getEmbeddings(openAIDeploymentName, [content]);
+    const response = await azureOpenAIClient.getEmbeddings(openAIDeploymentName, [content]);
 
     // The response includes the generated embedding
     const item = response.data[0];
@@ -233,33 +223,32 @@ async function getEmbeddingAsync(content) {
   }
 }
 
+// Create small chunks of contents.
 async function createFileChunks(fileContentsAsString, context) {
   try {
     const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 400,
-      chunkOverlap: 20,
+      chunkSize: 800,
+      chunkOverlap: 10,
       separators: ['\n\n', '\n', ' ', '']
     });
 
     const fileChunks = await splitter.createDocuments([fileContentsAsString]);
-    // Generate embeddings for file chunks here or perform other operations
     context.log('File chunks:', fileChunks);
     console.log('File chunks:', fileChunks);
     console.log(`=================================================`);
-    return fileChunks; // Return or process the file chunks as needed
+    return fileChunks;
   } catch (error) {
     context.log('Error processing file contents:', error);
     console.error('Error processing file contents:', error);
-    throw error; // Rethrow the error for handling at a higher level if necessary
+    throw error;
   }
 }
 
+// Create vector embeddings for each chunk of the file.
 async function createEmbeddings(fileChunks, blobUrl, fileName, context) {
   try {
-
     const records = [];
 
-    // Log the result and get embeddings for each item
     for (const chunk of fileChunks) {
       context.log(chunk);
       console.log(chunk);
@@ -288,11 +277,6 @@ async function createEmbeddings(fileChunks, blobUrl, fileName, context) {
 
         // Insert the document into the Cosmos DB container
         await container.items.create(documentEmbedding);
-        // console.log("Document created successfully:", createdItem);
-        // console.log("Document created successfully:", createdItem.contents);
-
-        // console.log("Embedding:", embedding);
-        // return records;
       } catch (error) {
         context.log("Error getting embedding:", error);
         console.error("Error getting embedding:", error);
@@ -301,12 +285,12 @@ async function createEmbeddings(fileChunks, blobUrl, fileName, context) {
 
     return records;
   } catch (err) {
-    // Handle parsing error
     context.log("Error parsing office file:", err);
     console.error("Error parsing office file:", err);
   }
 }
 
+// Helper function to read blob contents.
 async function readBlobContents(blobUrl) {
   try {
     const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
@@ -343,11 +327,12 @@ async function streamToBuffer(readableStream) {
   });
 }
 
+// Helper function to get blob name from URL.
 function getBlobNameFromUrl(blobUrl) {
   return path.basename(blobUrl);
 }
 
-// Function to read PDF content
+// Helper function to read PDF content.
 async function readPdfContent(buffer) {
   try {
     const data = await pdfParse(buffer);
