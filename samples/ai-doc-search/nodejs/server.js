@@ -1,18 +1,13 @@
-// Import necessary libraries and modules
+// <copyright file="server.js" company="Microsoft Corporation">
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+// server.js is used to setup and configure your API server.
+// </copyright>
+
 const express = require('express'); // Import the Express framework              
 const { OpenAIClient, AzureKeyCredential } = require("@azure/openai"); // Import Azure OpenAI SDK
-const { RecursiveCharacterTextSplitter } = require('langchain/text_splitter'); // Import the RecursiveCharacterTextSplitter
-const { BlobServiceClient } = require('@azure/storage-blob');
-const officeParser = require('officeparser');
-const fs = require('fs');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
 const { CosmosClient } = require("@azure/cosmos");
 require('dotenv').config();
-
-// Azure Storage connection string and container name.
-const azureStorageConnString = process.env.AzureStorageDBConnString;
-const azureBlobContainerName = process.env.AzureBlobContainerName;
 
 // Azure Open AI service endpoint, API key, and deployment name.
 const azureAiApiEndpoint = process.env.AzureOpenAIEndpoint;
@@ -63,128 +58,6 @@ app.get('/search', async (req, res) => {
 });
 
 /**
- * Function to split the text content of a file into smaller chunks.
- *
- * @param {string} fileContentsAsString - The content of the file as a single string.
- * @returns {Array} - An array of objects, each containing a chunk of the original text.
- * @throws Will throw an error if text splitting fails.
- */
-async function splitText(fileContentsAsString) {
-  // Create an instance of the RecursiveCharacterTextSplitter with specified options
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 500,
-    chunkOverlap: 5,
-    separators: ['\n\n', '\n', ' ', '']
-  });
-
-  // Split the file content into smaller chunks and return the result
-  return await splitter.createDocuments([fileContentsAsString]);
-}
-
-/**
- * Function to list all blobs in a container and retrieve their URLs.
- *
- * @returns {Array} - An array containing URLs of all blobs in the container.
- * @throws Will throw an error if listing blobs fails.
- */
-async function listBlobs() {
-  try {
-    // Create the BlobServiceClient object
-    const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
-
-    // Get the container client
-    const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
-
-    // List all blobs in the container and get their URLs
-    const blobUrls = [];
-    for await (const blob of containerClient.listBlobsFlat()) {
-      // Construct the blob URL
-      const blobUrl = `${containerClient.url}/${blob.name}`;
-      blobUrls.push(blobUrl);
-    }
-
-    return blobUrls;
-  } catch (error) {
-    console.error("Error listing blobs:", error);
-    throw error;
-  }
-}
-
-app.get('/createFilesEmbeddings', async (req, res) => {
-  try {
-    const blobUrls = await listBlobs();
-
-    if (blobUrls.length === 0) {
-      res.status(404).send('No blobs found.');
-      return;
-    }
-
-    // Define the list of allowed extensions
-    const allowedExtensions = ['.docx', '.pdf'];
-
-    for (const blobUrl of blobUrls) {
-      try {
-        // const blobUrl = blobUrls[0];
-        const blobName = path.basename(blobUrl);
-        const downloadFilePath = path.join(__dirname, blobName);
-
-        const blobServiceClient = BlobServiceClient.fromConnectionString(azureStorageConnString);
-        const containerClient = blobServiceClient.getContainerClient(azureBlobContainerName);
-
-        await downloadBlobToLocal(containerClient, blobName, downloadFilePath);
-
-        if (fs.existsSync(downloadFilePath)) {
-          const extension = path.extname(blobName);
-          if (extension === '.txt') {
-            const fileContents = await readFileContents(downloadFilePath);
-            const fileChunks = await createFileChunks(fileContents);
-
-            console.log(`FileName ${blobName}, Chunks ${fileChunks.length}`);
-            console.log(`=================================================`);
-
-            await createEmbeddings(fileChunks, blobUrl, blobName);
-            // createEmbeddings(fileChunks, blobUrl, blobName);
-            // Call the async function to delete the file
-          } else {
-            // Check if the extension is in the allowed list
-            if (allowedExtensions.includes(extension)) {
-              await parseOfficeFile(downloadFilePath, blobUrl, blobName);
-            } else {
-              res.status(404).send(`${blobName} is not one of the allowed file types.`);
-            }
-          }
-        } else {
-          console.error(`File ${downloadFilePath} does not exist!`);
-          res.status(404).send(`File ${downloadFilePath} does not exist!`);
-        }
-
-        // Replace double backslashes with single backslashes
-        // var filePath = downloadFilePath.replace(/\\\\/g, '\\');
-        var filePath = downloadFilePath.replace(/\\/g, '/');
-
-        // Delete the file after processing.
-        fs.unlink(downloadFilePath, (err) => {
-          if (err) {
-            console.error(`Failed to delete file: ${filePath}`, err); // Log an error message if deletion fails
-          } else {
-            console.log(`File deleted successfully: ${filePath}`); // Log the path of the deleted file
-          }
-        });
-
-      } catch (error) {
-        console.error(`Failed to process blob ${blobUrl}:`, error);
-      }
-    }
-
-    res.status(200).send("File chunks and embeddings are create successfully!");
-
-  } catch (error) {
-    console.error("Error processing request:", error);
-    res.status(500).send("An error occurred while processing your request.");
-  }
-});
-
-/**
  * Endpoint to perform a semantic search on documents.
  */
 app.get('/deleteAllItems', async (req, res) => {
@@ -198,93 +71,11 @@ app.get('/deleteAllItems', async (req, res) => {
 
     console.log('All items deleted successfully.');
     res.status(200).send('All items deleted successfully.');
-
   } catch (error) {
     res.status(500).send('Error occurred while delting all items from CosmosDB.');
     console.error('Error occurred while delting all items from CosmosDB.');
   }
 });
-
-/**
- * Function to download a blob from a container to a local file.
- *
- * @param {Object} containerClient - The container client used to access the blob.
- * @param {string} blobName - The name of the blob to download.
- * @param {string} downloadFilePath - The local file path where the blob will be downloaded.
- * @returns {Promise<void>} - A promise that resolves when the blob has been downloaded.
- */
-async function downloadBlobToLocal(containerClient, blobName, downloadFilePath) {
-  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-
-  // Download the blob to a local file
-  await blockBlobClient.downloadToFile(downloadFilePath);
-}
-
-/**
- * Function to parse an office file, split the text, and store the parsed data along with embeddings in a database.
- *
- * @param {string} filePath - The path to the office file.
- * @param {string} blobUrl - The URL of the blob storage where the file is stored.
- * @param {string} fileName - The name of the file.
- * @returns {Array} - An array of records containing similarity score, file name, URL, and contents.
- * @throws Will throw an error if parsing or embedding retrieval fails.
- */
-async function parseOfficeFile(filePath, blobUrl, fileName) {
-  try {
-    // Parse the office file asynchronously
-    const data = await officeParser.parseOfficeAsync(filePath);
-
-    // Split the parsed text
-    const result = await splitText(data);
-    const records = [];
-
-    console.log(`FileName ${fileName}, Chunks ${result.length}`);
-    console.log(`=================================================`);
-
-    // Log the result and get embeddings for each item
-    for (const item of result) {
-      console.log(item.pageContent);
-      console.log("====================================");
-
-      // Get embedding for the current item
-      try {
-        const embedding = await getEmbeddingAsync(item.pageContent);
-
-        // Create the DocumentEmbeddingDetail object
-        const documentEmbedding = {
-          id: uuidv4(), // Ensure the item has a unique 'id'
-          partitionKey: "teamid", // Adjust based on your partition key strategy
-          contents: item.pageContent,
-          fileName: fileName,
-          url: blobUrl,
-          vectors: Array.from(embedding), // Assuming embedding is already an array
-        };
-
-        records.push({
-          // SimilarityScore: 0.0,
-          FileName: fileName,
-          Url: blobUrl,
-          Contents: item.pageContent
-        });
-
-        // Insert the document into the Cosmos DB container
-        const { resource: createdItem } = await container.items.create(documentEmbedding);
-        // console.log("Document created successfully:", createdItem);
-        // console.log("Document created successfully:", createdItem.contents);
-
-        // console.log("Embedding:", embedding);
-        // return records;
-      } catch (error) {
-        console.error("Error getting embedding:", error);
-      }
-    }
-
-    return records;
-  } catch (err) {
-    // Handle parsing error
-    console.error("Error parsing office file:", err);
-  }
-}
 
 /**
  * Function to get the embedding vector for a given content.
@@ -323,7 +114,7 @@ async function semanticSearchDocumentsAsync(query) {
   try {
     // Get embedding vector for the search query.
     const embedding = await getEmbeddingAsync(query);
-    const similarityScore = 0.50;
+    const similarityScore = Number.parseFloat(process.env.SimilarityScore);
 
     // The SQL query to find the top 5 most similar documents
     const queryText = `
@@ -348,86 +139,5 @@ async function semanticSearchDocumentsAsync(query) {
   } catch (error) {
     console.error("Error during semantic search:", error);
     throw error;
-  }
-}
-
-async function createFileChunks(fileContentsAsString) {
-  try {
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 400,
-      chunkOverlap: 20,
-      separators: ['\n\n', '\n', ' ', '']
-    });
-
-    const fileChunks = await splitter.createDocuments([fileContentsAsString]);
-    // Generate embeddings for file chunks here or perform other operations
-    console.log('File chunks:', fileChunks);
-    console.log(`=================================================`);
-    return fileChunks; // Return or process the file chunks as needed
-  } catch (error) {
-    console.error('Error processing file contents:', error);
-    throw error; // Rethrow the error for handling at a higher level if necessary
-  }
-}
-
-function readFileContents(filePath) {
-  return new Promise((resolve, reject) => {
-    fs.readFile(filePath, 'utf8', (err, data) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(data);
-    });
-  });
-}
-
-async function createEmbeddings(fileChunks, blobUrl, fileName) {
-  try {
-
-    const records = [];
-
-    // Log the result and get embeddings for each item
-    for (const chunk of fileChunks) {
-      console.log(chunk);
-      console.log("====================================");
-
-      // Get embedding for the current item
-      try {
-        const embedding = await getEmbeddingAsync(chunk.pageContent);
-
-        // Create the DocumentEmbeddingDetail object
-        const documentEmbedding = {
-          id: uuidv4(), // Ensure the item has a unique 'id'
-          partitionKey: "teamid", // Adjust based on your partition key strategy
-          contents: chunk.pageContent,
-          fileName: fileName,
-          url: blobUrl,
-          vectors: Array.from(embedding), // Assuming embedding is already an array
-        };
-
-        records.push({
-          // SimilarityScore: 0.0,
-          FileName: fileName,
-          Url: blobUrl,
-          Contents: chunk.pageContent
-        });
-
-        // Insert the document into the Cosmos DB container
-        const { resource: createdItem } = await container.items.create(documentEmbedding);
-        // console.log("Document created successfully:", createdItem);
-        // console.log("Document created successfully:", createdItem.contents);
-
-        // console.log("Embedding:", embedding);
-        // return records;
-      } catch (error) {
-        console.error("Error getting embedding:", error);
-      }
-    }
-
-    return records;
-  } catch (err) {
-    // Handle parsing error
-    console.error("Error parsing office file:", err);
   }
 }
