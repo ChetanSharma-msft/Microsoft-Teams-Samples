@@ -8,6 +8,24 @@ const express = require('express'); // Import the Express framework
 const { OpenAIClient, AzureKeyCredential } = require("@azure/openai"); // Import Azure OpenAI SDK
 const { CosmosClient } = require("@azure/cosmos");
 require('dotenv').config();
+const appInsights = require('applicationinsights');
+
+// Configure Application Insights with your instrumentation key or connection string
+const instrumentationKey = process.env.APPINSIGHTS_INSTRUMENTATIONKEY;
+
+// Connection string
+const connectionString = process.env.APPINSIGHTS_CONNECTIONSTRING;
+
+appInsights.setup(connectionString || instrumentationKey)
+  .setAutoCollectRequests(true)
+  .setAutoCollectPerformance(true, true)
+  .setAutoCollectExceptions(true)
+  .setAutoCollectDependencies(true)
+  .setAutoCollectConsole(true, true)
+  .setUseDiskRetryCaching(true)
+  .start();
+
+const appInsightsClient = appInsights.defaultClient;
 
 // Azure Open AI service endpoint, API key, and deployment name.
 const azureAiApiEndpoint = process.env.AzureOpenAIEndpoint;
@@ -45,15 +63,19 @@ app.listen(3978, function () {
  */
 app.get('/search', async (req, res) => {
   try {
+    const query = req.query.query;
+    appInsightsClient.trackEvent({ name: "SearchStarted", properties: { query } });
     // Perform semantic search using the query parameter from the request
-    const result = await semanticSearchDocumentsAsync(req.query.query);
+    const result = await semanticSearchDocumentsAsync(query);
 
+    appInsightsClient.trackEvent({ name: "SearchCompleted", properties: { query } });
     // Send the search result as the response
     res.send(result);
   } catch (error) {
     // Log and send an error response if the search fails
     console.error("Error during semantic search:", error);
     res.status(500).send("Error during semantic search");
+    appInsightsClient.trackException({ exception: error, properties: { query } });
   }
 });
 
@@ -98,6 +120,8 @@ async function getEmbeddingAsync(content) {
     return embedding;
   } catch (error) {
     console.error("Error getting embeddings:", error);
+    appInsightsClient.trackException({ exception: error, properties: { content } });
+
     throw error;
   }
 }
@@ -112,9 +136,15 @@ async function getEmbeddingAsync(content) {
  */
 async function semanticSearchDocumentsAsync(query) {
   try {
+    appInsightsClient.trackEvent({ name: "EmbeddingStarted", properties: { query } });
+
     // Get embedding vector for the search query.
     const embedding = await getEmbeddingAsync(query);
+    appInsightsClient.trackEvent({ name: "EmbeddingStarted", properties: { query } });
+
     const similarityScore = Number.parseFloat(process.env.SimilarityScore);
+
+    appInsightsClient.trackEvent({ name: "SimilarityScore Parsed Successfully", properties: { similarityScore } });
 
     // The SQL query to find the top 5 most similar documents
     const queryText = `
@@ -134,10 +164,13 @@ async function semanticSearchDocumentsAsync(query) {
     // Fetch the top 5 results directly
     const { resources } = await container.items.query(querySpec).fetchAll();
     var result = resources.sort((a, b) => b.similarityScore - a.similarityScore);
+    appInsightsClient.trackEvent({ name: "Query Result Generated Successfully", properties: { result } });
 
     return result;
   } catch (error) {
     console.error("Error during semantic search:", error);
+    appInsightsClient.trackException({ exception: error, properties: { query } });
+
     throw error;
   }
 }
