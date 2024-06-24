@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "c71588cf-3879-406f-8364-af715b114200",
+  "packageName": "com.microsoft.teams.virtualassistant",
+  "developer": {
+    "name": "Teams App, Inc.",
+    "websiteUrl": "https://www.microsoft.com",
+    "privacyUrl": "https://www.microsoft.com/privacy",
+    "termsOfUseUrl": "https://www.microsoft.com/termsofuse"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "Virtual New-local",
+    "full": "Virtual New - Supert Bot-local"
+  },
+  "description": {
+    "short": "Supert Bot is an advanced virtual assistant bot for intelligent task management.",
+    "full": "Supert Bot is an advanced virtual assistant designed to enhance productivity through seamless integration and intelligent task management."
+  },
+  "accentColor": "#FFFFFF",
+  "bots": [
+    {
+      "botId": "{Bot Id}",
+      "scopes": [
+        "personal"
+      ],
+      "isNotificationOnly": false
+    }
+  ],
+  "validDomains": [
+    "Valid domains"
+  ]
+}
