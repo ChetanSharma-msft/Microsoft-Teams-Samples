@@ -15,8 +15,9 @@
     "applicationinsights": "^3.1.0",
     "dotenv": "^16.4.5",
     "langchain": "^0.2.5",
-    "officeparser": "^4.1.1",
-    "uuid": "^9.0.1"
+    "pdf-parse": "^1.1.1",
+    "uuid": "^9.0.1",
+    "word-extractor": "^1.0.4"
   },
   "main": "src/functions/*.js"
 }
