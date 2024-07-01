@@ -14,6 +14,7 @@ const {
     InputHints,
     ConfigurationBotFrameworkAuthentication
 } = require('botbuilder');
+
 const {
     allowedCallersClaimsValidator,
     AuthenticationConfiguration,
@@ -24,10 +25,10 @@ const {
 const ENV_FILE = path.join(__dirname, '.env');
 dotenv.config({ path: ENV_FILE });
 
-// This bot's main dialog.
+// Import the bot's main dialog.
 const { EchoBot } = require('./bot');
 
-// Create HTTP server
+// Create HTTP server using Restify.
 const server = restify.createServer();
 server.use(restify.plugins.bodyParser());
 
@@ -37,11 +38,13 @@ server.listen(process.env.port || process.env.PORT || 39783, () => {
     console.log('\nTo talk to your bot, open the emulator select "Open Bot"');
 });
 
-// Expose the manifest
+// Serve static files from the 'manifest' directory.
 server.get('/manifest/*', restify.plugins.serveStatic({ directory: './manifest', appendRequestPath: false }));
 
+// Read allowed callers from environment variables.
 const allowedCallers = (process.env.AllowedCallers || '').split(',').filter((val) => val) || [];
 
+// Create claims validators based on allowed callers.
 const claimsValidators = allowedCallersClaimsValidator(allowedCallers);
 
 // If the MicrosoftAppTenantId is specified in the environment config, add the tenant as a valid JWT token issuer for Bot to Skill conversation.
@@ -60,9 +63,10 @@ if (MicrosoftAppTenantId) {
     ];
 }
 
-// Define our authentication configuration.
+// Define authentication configuration.
 const authConfig = new AuthenticationConfiguration([], claimsValidators, validTokenIssuers);
 
+// Create credentials factory using environment variables.
 const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
     MicrosoftAppId: process.env.MicrosoftAppId,
     MicrosoftAppPassword: process.env.MicrosoftAppPassword,
@@ -70,61 +74,61 @@ const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
     MicrosoftAppTenantId: process.env.MicrosoftAppTenantId
 });
 
+// Create bot framework authentication instance.
 const botFrameworkAuthentication = new ConfigurationBotFrameworkAuthentication(process.env, credentialsFactory, authConfig);
 
-// Create adapter.
-// See https://aka.ms/about-bot-adapter to learn more about how bots work.
+// Create Cloud Adapter to handle bot interactions.
 const adapter = new CloudAdapter(botFrameworkAuthentication);
 
-// Catch-all for errors.
+// Set up error handling for the adapter.
 adapter.onTurnError = async (context, error) => {
-    // This check writes out errors to the console log, instead of to app insights.
-    // NOTE: In a production environment, you should consider logging this to Azure
-    //       application insights.
+    // Log the error to the console.
     console.error(`\n [onTurnError] unhandled error: ${ error }`);
 
+    // Send error message to the user.
     await sendErrorMessage(context, error);
+
+    // Send EndOfConversation activity to the parent bot.
     await sendEoCToParent(context, error);
 };
 
+// Function to send error message to the user.
 async function sendErrorMessage(context, error) {
     try {
-        // Send a message to the user.
+        // Inform the user that an error occurred.
         let onTurnErrorMessage = 'The skill encountered an error or bug.';
         await context.sendActivity(onTurnErrorMessage, onTurnErrorMessage, InputHints.ExpectingInput);
 
         onTurnErrorMessage = 'To continue to run this bot, please fix the bot source code.';
         await context.sendActivity(onTurnErrorMessage, onTurnErrorMessage, InputHints.ExpectingInput);
 
-        // Send a trace activity, which will be displayed in the Bot Framework Emulator.
-        // Note: we return the entire exception in the value property to help the developer;
-        // this should not be done in production.
+        // Send a trace activity with the error details.
         await context.sendTraceActivity('OnTurnError Trace', error.toString(), 'https://www.botframework.com/schemas/error', 'TurnError');
     } catch (err) {
         console.error(`\n [onTurnError] Exception caught in sendErrorMessage: ${ err }`);
     }
 }
 
+// Function to send EndOfConversation activity to the parent bot.
 async function sendEoCToParent(context, error) {
     try {
-        // Send an EndOfConversation activity to the skill caller with the error to end the conversation,
-        // and let the caller decide what to do.
         const endOfConversation = {
             type: ActivityTypes.EndOfConversation,
             code: 'SkillError',
             text: error.toString()
         };
+
         await context.sendActivity(endOfConversation);
     } catch (err) {
         console.error(`\n [onTurnError] Exception caught in sendEoCToParent: ${ err }`);
     }
 }
 
-// Create the main dialog.
-const myBot = new EchoBot();
+// Create an instance of the bot's main dialog.
+const echoBot = new EchoBot();
 
-// Listen for incoming requests.
+// Listen for incoming requests at '/api/messages'.
 server.post('/api/messages', async (req, res) => {
-    // Route received a request to adapter for processing
-    await adapter.process(req, res, (context) => myBot.run(context));
+    // Process the request and route to the bot's main dialog.
+    await adapter.process(req, res, (context) => echoBot.run(context));
 });

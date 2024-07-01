@@ -1,55 +1,24 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-const { ActivityHandler, ActivityTypes, EndOfConversationCodes } = require('botbuilder');
+const { ActivityHandler } = require('botbuilder');
 
-//const { OpenAIClient, AzureKeyCredential } = require("@azure/openai");
-
-
-
+// Define the EchoBot class, which extends the ActivityHandler class from botbuilder.
 class EchoBot extends ActivityHandler {
     constructor() {
+        // Call the constructor of the superclass (ActivityHandler).
         super();
-        // const client = new OpenAIClient(
-        //     "https://virtual-assistant-superbot-openai.openai.azure.com/", 
-        //     new AzureKeyCredential("15ce1aa33eef4caead7c84905568a160")
-        //   );
-        // See https://aka.ms/about-bot-activity-message to learn more about the message and other activity types.
+
+        // Set up an onMessage handler to handle incoming messages.
         this.onMessage(async (context, next) => {
-            //switch (context.activity.text.toLowerCase()) {
-            // case 'end':
-            // case 'stop':
-            //     await context.sendActivity({
-            //         type: ActivityTypes.EndOfConversation,
-            //         code: EndOfConversationCodes.CompletedSuccessfully
-            //     });
-            //     break;
-            // default:
-                //const { id, created, choices, usage } = await client.getChatCompletions("virtualassistant", [{role:"system",content:"You are helpfull assistant"},{role:"user",content:context.activity.text}]);
-
-                // await context.sendActivity(`Echo Latest (JS) : '${ context.activity.text }'`);
-                // await context.sendActivity('Say "end" or "stop" and I\'ll end the conversation and back to the parent.');
-            //}
-
+            // Echo back the received message text.
             await context.sendActivity(`Echo bot: ${ context.activity.text }`);
 
-            await context.sendActivity({
-                        type: ActivityTypes.EndOfConversation,
-                        code: EndOfConversationCodes.CompletedSuccessfully
-                    });
-            // By calling next() you ensure that the next BotHandler is run.
+            // Call the next handler in the pipeline.
             await next();
         });
-
-        //this.onEndOfConversation(async (context, next) => {
-            // This will be called if the root bot is ending the conversation.  Sending additional messages should be
-            // avoided as the conversation may have been deleted.
-            // Perform cleanup of resources if needed.
-
-            // By calling next() you ensure that the next BotHandler is run.
-            //await next();
-        //});
     }
 }
 
+// Export the EchoBot class so it can be used in other files.
 module.exports.EchoBot = EchoBot;
