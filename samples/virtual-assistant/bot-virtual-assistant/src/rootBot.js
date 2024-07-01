@@ -1,20 +1,16 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
+
 const { OpenAIClient, AzureKeyCredential } = require('@azure/openai');
 const { ActivityHandler, ActivityTypes } = require('botbuilder');
+const config = require('./config');
 
 class RootBot extends ActivityHandler {
     constructor(conversationState, skillsConfig, skillClient, conversationIdFactory) {
         super();
-        const client = new OpenAIClient('https://virtual-assistant-superbot-openai.openai.azure.com/', new AzureKeyCredential('15ce1aa33eef4caead7c84905568a160'));
-        // var classifier = new natural.BayesClassifier();
-        // classifier.addDocument('Please echo', 'echo');
-        // classifier.addDocument('echo', 'echo');
-        // classifier.addDocument('echo this', 'echo');
-        // classifier.addDocument('translate', 'translate');
-        // classifier.addDocument('Please translate this', 'translate');
-        // classifier.addDocument('Please rewrite this in French', 'translate');
-        // classifier.train();
+        const client = new OpenAIClient(
+            'https://virtual-assistant-superbot-openai.openai.azure.com/', 
+            new AzureKeyCredential('15ce1aa33eef4caead7c84905568a160'));
 
         if (!conversationState) throw new Error('[RootBot]: Missing parameter. conversationState is required');
         if (!skillsConfig) throw new Error('[RootBot]: Missing parameter. skillsConfig is required');
@@ -26,7 +22,7 @@ class RootBot extends ActivityHandler {
         this.skillClient = skillClient;
         this.conversationIdFactory = conversationIdFactory;
 
-        this.botId = process.env.MicrosoftAppId;
+        this.botId = config.botId;
 
         // We use a single skill in this example.
         const targetSkillId = 'EchoSkillBot';
@@ -105,39 +101,12 @@ class RootBot extends ActivityHandler {
             // Stop forwarding activities to Skill.
             await this.activeSkillProperty.set(context, undefined);
 
-            // Show status message, text and value returned by the skill
-            // let eocActivityMessage = `Received ${ ActivityTypes.EndOfConversation }.\n\nCode: ${ context.activity.code }`;
-            // if (context.activity.text) {
-            //     eocActivityMessage += `\n\nText: ${ context.activity.text }`;
-            // }
-
-            // if (context.activity.value) {
-            //     eocActivityMessage += `\n\nValue: ${ context.activity.value }`;
-            // }
-
-            // await context.sendActivity(eocActivityMessage);
-
-            // We are back at the root
-            // await context.sendActivity('Back in the root bot. Say \'skill\' and I\'ll patch you through');
-
             // Save conversation state
             await this.conversationState.saveChanges(context, true);
 
             // By calling next() you ensure that the next BotHandler is run.
             await next();
         });
-
-        // this.onMembersAdded(async (context, next) => {
-        //     const membersAdded = context.activity.membersAdded;
-        //     for (let cnt = 0; cnt < membersAdded.length; ++cnt) {
-        //         if (membersAdded[cnt].id !== context.activity.recipient.id) {
-        //             await context.sendActivity('Hello and welcome!');
-        //         }
-        //     }
-
-        //     // By calling next() you ensure that the next BotHandler is run.
-        //     await next();
-        // });
     }
 
     /**

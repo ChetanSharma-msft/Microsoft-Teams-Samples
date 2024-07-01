@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
+const config = require('./config');
 
 /**
  * A helper class that loads Skills information from configuration.
@@ -9,19 +10,19 @@ class SkillsConfiguration {
         this.skillsData = {};
 
         // Note: we only have one skill in this sample but we could load more if needed.
-        const skills = process.env.SkillId.split(',');
+        const skills = config.SkillId.split(',');
 
         for (var ind = 0; ind < skills.length; ind++) {
             const botFrameworkSkill = {
-                id: process.env.SkillId.split(',')[ind],
-                appId: process.env.SkillAppId.split(',')[ind],
-                skillEndpoint: process.env.skillEndpoint.split(',')[ind]
+                id: config.SkillId.split(',')[ind],
+                appId: config.SkillAppId.split(',')[ind],
+                skillEndpoint: config.SkillEndpoint.split(',')[ind]
             };
 
             this.skillsData[botFrameworkSkill.id] = botFrameworkSkill;
         };
 
-        this.skillHostEndpointValue = process.env.SkillHostEndpoint;
+        this.skillHostEndpointValue = config.SkillHostEndpoint;
         if (!this.skillHostEndpointValue) {
             throw new Error('[SkillsConfiguration]: Missing configuration parameter. SkillHostEndpoint is required');
         }
