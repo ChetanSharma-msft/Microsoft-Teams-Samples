@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-const { ActivityHandler } = require('botbuilder');
+const { ActivityHandler, ActivityTypes, EndOfConversationCodes } = require('botbuilder');
 
 // Define the EchoBot class, which extends the ActivityHandler class from botbuilder.
 class EchoBot extends ActivityHandler {
@@ -13,6 +13,12 @@ class EchoBot extends ActivityHandler {
         this.onMessage(async (context, next) => {
             // Echo back the received message text.
             await context.sendActivity(`Echo bot: ${ context.activity.text }`);
+
+            // Send an EndOfConversation activity to indicate completion
+            await context.sendActivity({
+                type: ActivityTypes.EndOfConversation,
+                code: EndOfConversationCodes.CompletedSuccessfully
+            });
 
             // Call the next handler in the pipeline.
             await next();

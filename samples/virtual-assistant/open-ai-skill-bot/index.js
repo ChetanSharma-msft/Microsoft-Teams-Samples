@@ -20,38 +20,39 @@ const {
     AuthenticationConstants
 } = require('botframework-connector');
 
-// Import required bot configuration.
+// Load environment variables from .env file
 const ENV_FILE = path.join(__dirname, '.env');
 dotenv.config({ path: ENV_FILE });
 
-// This bot's main dialog.
+// Import the bot's main dialog
 const { AIBot } = require('./bot');
 
-// Create HTTP server
+// Create HTTP server using restify
 const server = restify.createServer();
 server.use(restify.plugins.bodyParser());
 
 server.listen(process.env.port || process.env.PORT || 39784, () => {
     console.log(`\n${ server.name } listening to ${ server.url }`);
     console.log('\nGet Bot Framework Emulator: https://aka.ms/botframework-emulator');
-    console.log('\nTo talk to your bot, open the emulator select "Open Bot"');
+    console.log('\nTo talk to your bot, open the emulator and select "Open Bot".');
 });
 
-// Expose the manifest
+// Serve manifest files
 server.get('/manifest/*', restify.plugins.serveStatic({ directory: './manifest', appendRequestPath: false }));
 
+// Parse allowed callers from environment variable
 const allowedCallers = (process.env.AllowedCallers || '').split(',').filter((val) => val) || [];
 
+// Create claims validator
 const claimsValidators = allowedCallersClaimsValidator(allowedCallers);
 
-// If the MicrosoftAppTenantId is specified in the environment config, add the tenant as a valid JWT token issuer for Bot to Skill conversation.
-// The token issuer for MSI and single tenant scenarios will be the tenant where the bot is registered.
+// Configure valid token issuers for authentication
 let validTokenIssuers = [];
 const { MicrosoftAppTenantId } = process.env;
 
 if (MicrosoftAppTenantId) {
     // For SingleTenant/MSI auth, the JWT tokens will be issued from the bot's home tenant.
-    // Therefore, these issuers need to be added to the list of valid token issuers for authenticating activity requests.
+    // Add these issuers to the list of valid token issuers.
     validTokenIssuers = [
         `${ AuthenticationConstants.ValidTokenIssuerUrlTemplateV1 }${ MicrosoftAppTenantId }/`,
         `${ AuthenticationConstants.ValidTokenIssuerUrlTemplateV2 }${ MicrosoftAppTenantId }/v2.0/`,
@@ -60,9 +61,10 @@ if (MicrosoftAppTenantId) {
     ];
 }
 
-// Define our authentication configuration.
+// Define authentication configuration
 const authConfig = new AuthenticationConfiguration([], claimsValidators, validTokenIssuers);
 
+// Create credentials factory using configuration service client
 const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
     MicrosoftAppId: process.env.MicrosoftAppId,
     MicrosoftAppPassword: process.env.MicrosoftAppPassword,
@@ -70,45 +72,38 @@ const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
     MicrosoftAppTenantId: process.env.MicrosoftAppTenantId
 });
 
+// Instantiate bot framework authentication
 const botFrameworkAuthentication = new ConfigurationBotFrameworkAuthentication(process.env, credentialsFactory, authConfig);
 
-// Create adapter.
-// See https://aka.ms/about-bot-adapter to learn more about how bots work.
+// Create adapter with bot framework authentication
 const adapter = new CloudAdapter(botFrameworkAuthentication);
 
-// Catch-all for errors.
+// Error handling for turns
 adapter.onTurnError = async (context, error) => {
-    // This check writes out errors to the console log, instead of to app insights.
-    // NOTE: In a production environment, you should consider logging this to Azure
-    //       application insights.
     console.error(`\n [onTurnError] unhandled error: ${ error }`);
 
     await sendErrorMessage(context, error);
     await sendEoCToParent(context, error);
 };
 
+// Function to send error message to user
 async function sendErrorMessage(context, error) {
     try {
-        // Send a message to the user.
         let onTurnErrorMessage = 'The skill encountered an error or bug.';
         await context.sendActivity(onTurnErrorMessage, onTurnErrorMessage, InputHints.ExpectingInput);
 
         onTurnErrorMessage = 'To continue to run this bot, please fix the bot source code.';
         await context.sendActivity(onTurnErrorMessage, onTurnErrorMessage, InputHints.ExpectingInput);
 
-        // Send a trace activity, which will be displayed in the Bot Framework Emulator.
-        // Note: we return the entire exception in the value property to help the developer;
-        // this should not be done in production.
         await context.sendTraceActivity('OnTurnError Trace', error.toString(), 'https://www.botframework.com/schemas/error', 'TurnError');
     } catch (err) {
         console.error(`\n [onTurnError] Exception caught in sendErrorMessage: ${ err }`);
     }
 }
 
+// Function to send EndOfConversation activity to parent with error details
 async function sendEoCToParent(context, error) {
     try {
-        // Send an EndOfConversation activity to the skill caller with the error to end the conversation,
-        // and let the caller decide what to do.
         const endOfConversation = {
             type: ActivityTypes.EndOfConversation,
             code: 'SkillError',
@@ -120,11 +115,10 @@ async function sendEoCToParent(context, error) {
     }
 }
 
-// Create the main dialog.
-const myBot = new AIBot();
+// Create an instance of the bot
+const aiBot = new AIBot();
 
-// Listen for incoming requests.
+// Listen for incoming messages
 server.post('/api/messages', async (req, res) => {
-    // Route received a request to adapter for processing
-    await adapter.process(req, res, (context) => myBot.run(context));
+    await adapter.process(req, res, (context) => aiBot.run(context));
 });
