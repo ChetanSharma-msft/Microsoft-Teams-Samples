@@ -1,10 +1,12 @@
-// <copyright file="server.js" company="Microsoft Corporation">
+// <copyright file="search.js" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 // server.js is used to setup and configure your API server.
 // </copyright>
 
-const express = require('express'); // Import the Express framework              
+var express = require('express');
+var router = express.Router();
+
 const { OpenAIClient, AzureKeyCredential } = require("@azure/openai"); // Import Azure OpenAI SDK
 const { CosmosClient } = require("@azure/cosmos");
 require('dotenv').config();
@@ -49,19 +51,8 @@ const containerId = process.env.CosmosDBContainerId;
 // Get a reference to the Cosmos DB container.
 const container = cosmosClient.database(databaseId).container(containerId);
 
-const app = express(); // Create an Express application
-
-// Middleware to parse incoming JSON data
-app.use(express.json());
-
-app.listen(3978, function () {
-  console.log('app listening on port 3978!');
-});
-
-/**
- * Endpoint to perform a semantic search on documents.
- */
-app.get('/search', async (req, res) => {
+/* GET search listing. */
+router.get('/', async function(req, res, next) {
   try {
     const query = req.query.query;
     appInsightsClient.trackEvent({ name: "SearchStarted", properties: { query } });
@@ -75,27 +66,7 @@ app.get('/search', async (req, res) => {
     // Log and send an error response if the search fails
     console.error("Error during semantic search:", error);
     res.status(500).send("Error during semantic search");
-    appInsightsClient.trackException({ exception: error, properties: { query } });
-  }
-});
-
-/**
- * Endpoint to perform a semantic search on documents.
- */
-app.get('/deleteAllItems', async (req, res) => {
-  try {
-    const { resources: items } = await container.items.readAll().fetchAll();
-
-    for (const item of items) {
-      await container.item(item.id).delete();
-      console.log(`Deleted item with id: ${item.id}`);
-    }
-
-    console.log('All items deleted successfully.');
-    res.status(200).send('All items deleted successfully.');
-  } catch (error) {
-    res.status(500).send('Error occurred while delting all items from CosmosDB.');
-    console.error('Error occurred while delting all items from CosmosDB.');
+    appInsightsClient.trackException({ exception: error, properties: { error } });
   }
 });
 
@@ -120,7 +91,7 @@ async function getEmbeddingAsync(content) {
     return embedding;
   } catch (error) {
     console.error("Error getting embeddings:", error);
-    appInsightsClient.trackException({ exception: error, properties: { content } });
+    appInsightsClient.trackException({ exception: error, properties: { error } });
 
     throw error;
   }
@@ -169,8 +140,10 @@ async function semanticSearchDocumentsAsync(query) {
     return result;
   } catch (error) {
     console.error("Error during semantic search:", error);
-    appInsightsClient.trackException({ exception: error, properties: { query } });
+    appInsightsClient.trackException({ exception: error, properties: { error } });
 
     throw error;
   }
 }
+
+module.exports = router;
