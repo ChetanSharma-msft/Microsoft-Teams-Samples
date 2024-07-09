@@ -14,14 +14,18 @@ class EchoBot extends ActivityHandler {
             // Echo back the received message text.
             await context.sendActivity(`Echo bot: ${ context.activity.text }`);
 
-            // Send an EndOfConversation activity to indicate completion
-            await context.sendActivity({
-                type: ActivityTypes.EndOfConversation,
-                code: EndOfConversationCodes.CompletedSuccessfully
-            });
+            try {
+                // Send an EndOfConversation activity to indicate completion
+                await context.sendActivity({
+                    type: ActivityTypes.EndOfConversation,
+                    code: EndOfConversationCodes.CompletedSuccessfully
+                });
 
-            // Call the next handler in the pipeline.
-            await next();
+                // Call the next handler in the pipeline.
+                await next();
+            } catch (err) {
+                console.error(`\n [onTurnError] Exception caught in sendErrorMessage: ${ err }`);
+            }
         });
     }
 }
