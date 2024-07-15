@@ -166,7 +166,7 @@ async function parseOfficeFile(blobUrl, fileName, context, data) {
         // Create the DocumentEmbeddingDetail object
         const documentEmbedding = {
           id: uuidv4(), // Ensure the item has a unique 'id'
-          partitionKey: "teamid", // Adjust based on your partition key strategy
+          partitionKey: process.env.PartitionKey, // Adjust based on your partition key strategy
           contents: item.pageContent,
           fileName: fileName,
           url: blobUrl,
@@ -261,7 +261,7 @@ async function createEmbeddings(fileChunks, blobUrl, fileName, context) {
         // Create the DocumentEmbeddingDetail object
         const documentEmbedding = {
           id: uuidv4(), // Ensure the item has a unique 'id'
-          partitionKey: "teamid", // Adjust based on your partition key strategy
+          partitionKey: process.env.PartitionKey, // Adjust based on your partition key strategy
           contents: chunk.pageContent,
           fileName: fileName,
           url: blobUrl,
