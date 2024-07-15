@@ -42,32 +42,31 @@ This is a sample application that demonstrates how to perform RAG-based semantic
 
 ## Setup the application locally
 
-### Create and configure Azure Cosmos DB for NoSQL
+### Create and configure Azure Cosmos DB for NoSQL:
 
-1. **[Create Azure Cosmos DB Account](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/quickstart-portal#create-account)** in Azure portal and [Enroll in the Vector Search Preview Feature](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/vector-search#enroll-in-the-vector-search-preview-feature)
-  - Create and collect `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId`, `PartitionKey` and save those values in Notepad to update in `.env` file later.
+ - **[Create Azure Cosmos DB Account](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/quickstart-portal#create-account)** in Azure portal and [Enroll in the Vector Search Preview Feature](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/vector-search#enroll-in-the-vector-search-preview-feature)
+  Create and collect `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId` and save those values in Notepad to update in `.env` file later.
 
-
- 2. **Create Azure Open AI service**
-   - In Azure portal, create a [Azure Open AI servie](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/create-resource?pivots=web-portal).
-
-3. **Create Azure Blob storage**
+### Create Azure Open AI service:
+- In Azure portal, create a [Azure Open AI servie](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/create-resource?pivots=web-portal).
+- Create and collect `AzureOpenAIEndpoint`, `AzureOpenAIApiKey`, `AzureOpenAIDeploymentName`, and save those values in Notepad to update in `.env` file later.
+- 
+### Create Azure Blob storage:
 
 - In Azure portal, create a [Azure Blob storage](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction).
 
    
-
-4. **Setup for code**
+### Setup for code:
 
   - Clone the repository
 
     ```bash
     git clone https://github.com/OfficeDev/Microsoft-Teams-Samples.git
     ```
-  - Navigate to `samples/api-doc-search/api-doc-search` folder and open the project in Visual Studio Code.
+  - Navigate to `samples/api-doc-search/nodejs` folder and open the project in Visual Studio Code.
   - Open `ai-doc-search` folder and `.env` file.
-  - Update the `.env` configuration for the application to use the `AzureOpenAIEndpoint`, `AzureOpenAIApiKey`, `AzureOpenAIDeploymentName`, `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId`, `PartitionKey`, `SimilarityScore`, `APPINSIGHTS_INSTRUMENTATIONKEY`, `APPINSIGHTS_CONNECTIONSTRING` values.
-  - In a terminal, navigate to `samples/api-doc-search/api-doc-search`
+  - Update the `.env` configuration for the application to use the `AzureOpenAIEndpoint`, `AzureOpenAIApiKey`, `AzureOpenAIDeploymentName`, `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId`, `SimilarityScore`, `APPINSIGHTS_INSTRUMENTATIONKEY`, `APPINSIGHTS_CONNECTIONSTRING` values.
+  - In a terminal, navigate to `samples/api-doc-search/nodejs`
 
  - Install node modules and run application via pressing F5 in Visual Studio Code
  - 
@@ -75,9 +74,8 @@ This is a sample application that demonstrates how to perform RAG-based semantic
     npm install
    ```
 
-    
-5. Setup Azure Function
-    - ![Refer this documentation]()
+### Setup Azure Function:    
+- ![Refer this documentation]()
 
 
 ## Running the sample
@@ -85,18 +83,21 @@ This is a sample application that demonstrates how to perform RAG-based semantic
 - **Application Home Page:**
 ![API Home page](Images/1.app-home-page.png)
 
+
 - **Search query and results:**
 ![Search query and result - 1](Images/2.search-result-postman-1.png)
 
+
 - **Search query and results:**
 ![Search query and result - 2](Images/3.search-result-postman-2.png)
+
 
   - **Search query and results:**
 ![Search query and result - 3](Images/4.search-result-postman-3.png)
   
   - **Search query and results:**
 ![Search query and result - 4](Images/5.search-result-web.png)
-  
+
 ![Upload file to blob storage](Images/blob-container.png)
 
 ![Automatically trigger Azure function app](Images/azure-function-invocation.png)
@@ -107,7 +108,7 @@ This is a sample application that demonstrates how to perform RAG-based semantic
 
 ## Deploy the sample in Azure environment
 
-[Refer this documentation](https://learn.microsoft.com/en-us/azure/app-service/quickstart-nodejs?tabs=windows&pivots=development-environment-vscode#deploy-to-azure)
+[Refer this documentation](https://learn.microsoft.com/en-us/azure/app-service/quickstart-nodejs?tabs=windows&pivots=development-environment-vscode#configure-the-app-service-app-and-deploy-code)
 
 ## Further reading
 
