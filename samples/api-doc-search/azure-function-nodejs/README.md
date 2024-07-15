@@ -26,6 +26,11 @@
 
 - [Create the function app](https://learn.microsoft.com/en-us/azure/azure-functions/functions-event-grid-blob-trigger?pivots=programming-language-javascript#create-the-function-app).
 
+## Create Azure App Insights
+- [Azure App Insights](https://learn.microsoft.com/en-us/azure/azure-monitor/app/nodejs)
+- Create and collect `APPINSIGHTS_INSTRUMENTATIONKEY`, `APPINSIGHTS_CONNECTIONSTRING` and save these values in Notepad to update in `.local.settings.json` file later.
+
+
 ## Create the Event Subscription
 **> Note: Please follow below documentation carefully to make your Azure function successfully up and running.**
 
@@ -41,7 +46,7 @@
     git clone https://github.com/OfficeDev/Microsoft-Teams-Samples.git
     ```
   - Navigate to `samples/api-doc-search/azure-function-nodejs` folder and open the project in Visual Studio Code.
-  - Open `.local.settings.json` file and update the configuration for the application to use the `AzureOpenAIEndpoint`, `AzureOpenAIApiKey`, `AzureOpenAIDeploymentName`, `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId`, `PartitionKey`, `SimilarityScore`, `APPINSIGHTS_INSTRUMENTATIONKEY`, `APPINSIGHTS_CONNECTIONSTRING` values.
+  - Open `.local.settings1.json` file and rename it as `.local.settings.json` and update the configuration for the application to use the `AzureOpenAIEndpoint`, `AzureOpenAIApiKey`, `AzureOpenAIDeploymentName`, `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId`, `PartitionKey`, `SimilarityScore`, `APPINSIGHTS_INSTRUMENTATIONKEY`, `APPINSIGHTS_CONNECTIONSTRING` values.
   
   - In a terminal, navigate to `samples/api-doc-search/azure-function-nodejs`
 
