@@ -82,16 +82,21 @@ This is a sample application that demonstrates how to perform RAG-based semantic
 
 ## Running the sample
 
-- Application Home Page:
+- **Application Home Page:**
 ![API Home page](Images/1.app-home-page.png)
-- Search query and results:
+
+- **Search query and results:**
 ![Search query and result - 1](Images/2.search-result-postman-1.png)
-- Search query and results:
+
+- **Search query and results:**
 ![Search query and result - 2](Images/3.search-result-postman-2.png)
-  - Search query and results:
+
+  - **Search query and results:**
 ![Search query and result - 3](Images/4.search-result-postman-3.png)
-  - Search query and results:
+  
+  - **Search query and results:**
 ![Search query and result - 4](Images/5.search-result-web.png)
+  
 ![Upload file to blob storage](Images/blob-container.png)
 
 ![Automatically trigger Azure function app](Images/azure-function-invocation.png)
