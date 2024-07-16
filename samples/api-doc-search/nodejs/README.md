@@ -45,16 +45,16 @@ This is a sample application that demonstrates how to perform RAG-based semantic
 ### Setup Azure Function
 - [Setup Azure Function and other resources](../azure-function-nodejs/README.md)
 
-### Create and configure Azure Cosmos DB for NoSQL:
+### Create and configure Azure Cosmos DB for NoSQL
 
  - **[Create Azure Cosmos DB Account](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/quickstart-portal#create-account)** in Azure portal and [Enroll in the Vector Search Preview Feature](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/vector-search#enroll-in-the-vector-search-preview-feature)
  - Create and collect `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId` and save those values in Notepad to update in `.env` file later.
 
-### Create Azure Open AI service:
+### Create Azure Open AI service
 - In Azure portal, create a [Azure Open AI servie](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/create-resource?pivots=web-portal).
 - Create and collect `AzureOpenAIEndpoint`, `AzureOpenAIApiKey`, `AzureOpenAIDeploymentName`, and save those values in Notepad to update in `.env` file later.
    
-### Setup for code:
+### Setup for code
 
   - Clone the repository
 
@@ -66,27 +66,26 @@ This is a sample application that demonstrates how to perform RAG-based semantic
   - In a terminal, navigate to `samples/api-doc-search/nodejs`
 
  - Install node modules and run application via pressing F5 in Visual Studio Code
- - 
+ 
    ```bash
     npm install
    ```
 
 ## Running the sample
-[Upload a file to the blob container and it will trigger Azure function automatically and Azure function with start creating and storing embedding vectors in CosmosDB](https://learn.microsoft.com/en-us/azure/azure-functions/functions-event-grid-blob-trigger?pivots=programming-language-javascript#upload-a-file-to-the-container)
 
-- **Blob Container:** Upload the file to blob container and it will trigger Azure function automatically.
-![Blob Container](Images/1.blob-container.png)
+- **Upload file to Azure Blob container:** Upload the file to blob container and it will trigger Azure function automatically.
+![Blob Container](../azure-function-nodejs/Images/1.blob-container.png)
 
 
-- **Azure Function Invocation:** Azure function will invoke and start creating and storing embedding vectors in CosmosDB.
-![Azure Function Invocation](Images/3.azure-function-invocation.png)
+- **Azure Function will invoke:** Azure function will invoke and start creating and storing embedding vectors in CosmosDB.
+![Azure Function Invocation](../azure-function-nodejs/Images/3.azure-function-invocation.png)
   
 
-- **Cosmos DB Embeddings:** You can see the embedding vectors stored in CosmosDB.
-![Cosmos DB Embeddings](Images/4.cosmos-db-embeddings.png)
+- **Azure function with store embeddings in CosmosDB:** You can see the embedding vectors stored in CosmosDB.
+![Cosmos DB Embeddings](../azure-function-nodejs/Images/4.cosmos-db-embeddings.png)
 
 
-- **Application Home Page:**
+- **API Application Home Page:**
 ![API Home page](Images/1.app-home-page.png)
 
 
@@ -97,9 +96,6 @@ This is a sample application that demonstrates how to perform RAG-based semantic
 - **Search query and results:**
 ![Search query and result - 2](Images/3.search-result-postman-2.png)
 
-
-  - **Search query and results:**
-![Search query and result - 3](Images/4.search-result-postman-3.png)
   
   - **Search query and results:**
 ![Search query and result - 4](Images/5.search-result-web.png)
