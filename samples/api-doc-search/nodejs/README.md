@@ -45,16 +45,11 @@ This is a sample application that demonstrates how to perform RAG-based semantic
 ### Create and configure Azure Cosmos DB for NoSQL:
 
  - **[Create Azure Cosmos DB Account](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/quickstart-portal#create-account)** in Azure portal and [Enroll in the Vector Search Preview Feature](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/vector-search#enroll-in-the-vector-search-preview-feature)
-  Create and collect `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId` and save those values in Notepad to update in `.env` file later.
+ - Create and collect `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId` and save those values in Notepad to update in `.env` file later.
 
 ### Create Azure Open AI service:
 - In Azure portal, create a [Azure Open AI servie](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/create-resource?pivots=web-portal).
 - Create and collect `AzureOpenAIEndpoint`, `AzureOpenAIApiKey`, `AzureOpenAIDeploymentName`, and save those values in Notepad to update in `.env` file later.
-- 
-### Create Azure Blob storage:
-
-- In Azure portal, create a [Azure Blob storage](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction).
-
    
 ### Setup for code:
 
@@ -64,8 +59,7 @@ This is a sample application that demonstrates how to perform RAG-based semantic
     git clone https://github.com/OfficeDev/Microsoft-Teams-Samples.git
     ```
   - Navigate to `samples/api-doc-search/nodejs` folder and open the project in Visual Studio Code.
-  - Open `ai-doc-search` folder and `.env` file.
-  - Update the `.env` configuration for the application to use the `AzureOpenAIEndpoint`, `AzureOpenAIApiKey`, `AzureOpenAIDeploymentName`, `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId`, `SimilarityScore`, `APPINSIGHTS_INSTRUMENTATIONKEY`, `APPINSIGHTS_CONNECTIONSTRING` values.
+  - Open `.env` file and update the `.env` configuration for the application to use the `AzureOpenAIEndpoint`, `AzureOpenAIApiKey`, `AzureOpenAIDeploymentName`, `CosmosDBEndpoint`, `CosmosDBKey`, `CosmosDBDatabaseId`, `CosmosDBContainerId`, `SimilarityScore`, `APPINSIGHTS_INSTRUMENTATIONKEY`, `APPINSIGHTS_CONNECTIONSTRING` values.
   - In a terminal, navigate to `samples/api-doc-search/nodejs`
 
  - Install node modules and run application via pressing F5 in Visual Studio Code
@@ -74,11 +68,25 @@ This is a sample application that demonstrates how to perform RAG-based semantic
     npm install
    ```
 
-### Setup Azure Function:    
-- ![Refer this documentation]()
+### Setup Azure Function
+- ![Refer this documentation](../README.md)
+- [Refer this documentation](../README.md)
 
 
 ## Running the sample
+[Upload a file to the blob container and it will trigger Azure function automatically and Azure function with start creating and storing embedding vectors in CosmosDB](https://learn.microsoft.com/en-us/azure/azure-functions/functions-event-grid-blob-trigger?pivots=programming-language-javascript#upload-a-file-to-the-container)
+
+- **Blob Container:** Upload the file to blob container and it will trigger Azure function automatically.
+![Blob Container](Images/1.blob-container.png)
+
+
+- **Azure Function Invocation:** Azure function will invoke and start creating and storing embedding vectors in CosmosDB.
+![Azure Function Invocation](Images/3.azure-function-invocation.png)
+  
+
+- **Cosmos DB Embeddings:** You can see the embedding vectors stored in CosmosDB.
+![Cosmos DB Embeddings](Images/4.cosmos-db-embeddings.png)
+
 
 - **Application Home Page:**
 ![API Home page](Images/1.app-home-page.png)
@@ -98,17 +106,9 @@ This is a sample application that demonstrates how to perform RAG-based semantic
   - **Search query and results:**
 ![Search query and result - 4](Images/5.search-result-web.png)
 
-![Upload file to blob storage](Images/blob-container.png)
-
-![Automatically trigger Azure function app](Images/azure-function-invocation.png)
-
-![Embeddings stored in Cosmos DB](Images/cosmos-db-embeddings.png)
-
-![Hit doc search API and test your prompts/queries](Images/search-result-postman.png)
-
 ## Deploy the sample in Azure environment
 
-[Refer this documentation](https://learn.microsoft.com/en-us/azure/app-service/quickstart-nodejs?tabs=windows&pivots=development-environment-vscode#configure-the-app-service-app-and-deploy-code)
+[Deploy the code](https://learn.microsoft.com/en-us/azure/app-service/quickstart-nodejs?tabs=windows&pivots=development-environment-vscode#configure-the-app-service-app-and-deploy-code)
 
 ## Further reading
 
