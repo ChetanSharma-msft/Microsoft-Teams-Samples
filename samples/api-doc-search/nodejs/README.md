@@ -89,15 +89,19 @@ This is a sample application that demonstrates how to perform RAG-based semantic
 ![API Home page](Images/1.app-home-page.png)
 
 
-- **Search query and results:**
+- **Open the Postman and search the query to get results:**
+`http://localhost:3000/search?query=what is Teams AI Library?`
+
 ![Search query and result - 1](Images/2.search-result-postman-1.png)
 
 
-- **Search query and results:**
+- **Open the Postman and search the query to get results:**
+`http://localhost:3000/search?query=what is Prompt Tuning?`
 ![Search query and result - 2](Images/3.search-result-postman-2.png)
 
   
-  - **Search query and results:**
+- **Open any browser and you can hit same API like below:**
+`http://localhost:3000/search?query=what is Teams AI Library?`
 ![Search query and result - 4](Images/5.search-result-web.png)
 
 ## Deploy the sample in Azure environment
