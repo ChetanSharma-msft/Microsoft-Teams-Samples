@@ -42,6 +42,9 @@ This is a sample application that demonstrates how to perform RAG-based semantic
 
 ## Setup the application locally
 
+### Setup Azure Function
+- [Setup Azure Function and other resources](../azure-function-nodejs/README.md)
+
 ### Create and configure Azure Cosmos DB for NoSQL:
 
  - **[Create Azure Cosmos DB Account](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/quickstart-portal#create-account)** in Azure portal and [Enroll in the Vector Search Preview Feature](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/vector-search#enroll-in-the-vector-search-preview-feature)
@@ -67,11 +70,6 @@ This is a sample application that demonstrates how to perform RAG-based semantic
    ```bash
     npm install
    ```
-
-### Setup Azure Function
-- ![Refer this documentation](../README.md)
-- [Refer this documentation](../README.md)
-
 
 ## Running the sample
 [Upload a file to the blob container and it will trigger Azure function automatically and Azure function with start creating and storing embedding vectors in CosmosDB](https://learn.microsoft.com/en-us/azure/azure-functions/functions-event-grid-blob-trigger?pivots=programming-language-javascript#upload-a-file-to-the-container)
