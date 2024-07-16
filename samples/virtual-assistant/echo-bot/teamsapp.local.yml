@@ -8,7 +8,7 @@ provision:
   - uses: teamsApp/create
     with:
       # Teams app name
-      name: bot-virtual-assistant${{APP_NAME_SUFFIX}}
+      name: echo-bot${{APP_NAME_SUFFIX}}
     # Write the information of created resources into environment file for
     # the specified environment variable(s).
     writeToEnvironmentFile:
@@ -18,7 +18,7 @@ provision:
   - uses: aadApp/create
     with:
       # The Microsoft Entra application's display name
-      name: bot-virtual-assistant${{APP_NAME_SUFFIX}}
+      name: echo-bot${{APP_NAME_SUFFIX}}
       generateClientSecret: true
       signInAudience: AzureADMultipleOrgs
     writeToEnvironmentFile:
@@ -33,7 +33,7 @@ provision:
   - uses: botFramework/create
     with:
       botId: ${{BOT_ID}}
-      name: bot-virtual-assistant
+      name: echo-bot
       messagingEndpoint: ${{BOT_ENDPOINT}}/api/messages
       description: ""
       channels:
@@ -44,7 +44,6 @@ provision:
     with:
       # Path to manifest template
       manifestPath: ./appPackage/manifest.json
-
   # Build Teams app package with latest env value
   - uses: teamsApp/zipAppPackage
     with:
@@ -57,7 +56,6 @@ provision:
     with:
       # Relative path to this file. This is the path for built zip file.
       appPackagePath: ./appPackage/build/appPackage.${{TEAMSFX_ENV}}.zip
-
   # Apply the Teams app manifest to an existing Teams app in
   # Teams Developer Portal.
   # Will use the app id in manifest file to determine which Teams app to update.
@@ -72,7 +70,6 @@ deploy:
     name: install dependencies
     with:
       args: install --no-audit
-
   # Generate runtime environment variables
   - uses: file/createOrUpdateEnvironmentFile
     with:
@@ -80,4 +77,6 @@ deploy:
       envs:
         BOT_ID: ${{BOT_ID}}
         BOT_PASSWORD: ${{SECRET_BOT_PASSWORD}}
-        MicrosoftAppTenantId: ${{TEAMS_APP_TENANT_ID}}
+        MicrosoftAppTenantId : ${{TEAMS_APP_TENANT_ID}}
+        MicrosoftAppType: ${{MicrosoftAppType}}
+        AllowedCallers: ${{AllowedCallers}}

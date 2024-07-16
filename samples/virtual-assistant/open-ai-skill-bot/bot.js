@@ -31,21 +31,25 @@ class AIBot extends ActivityHandler {
                 }
             ];
 
-            // Get response from OpenAI API
+            // Get response from OpenAI API.
             const response = await client.getChatCompletions(process.env.AzureOpenAIDeploymentId, messages, { maxTokens: 2000 });
             const responseContent = response.choices[0].message.content;
 
-            // Send the AI response back to the user
+            // Send the AI response back to the user.
             await context.sendActivity(`AI Translator bot: ${ responseContent }`);
 
-            // Send an EndOfConversation activity to indicate completion
-            await context.sendActivity({
-                type: ActivityTypes.EndOfConversation,
-                code: EndOfConversationCodes.CompletedSuccessfully
-            });
+            try {
+                // Send an EndOfConversation activity to indicate completion.
+                await context.sendActivity({
+                    type: ActivityTypes.EndOfConversation,
+                    code: EndOfConversationCodes.CompletedSuccessfully
+                });
 
-            // Ensure the next BotHandler is run
-            await next();
+                // Ensure the next BotHandler is run
+                await next();
+            } catch (err) {
+                console.error(`\n [onTurnError] Exception caught in sendErrorMessage: ${ err }`);
+            }
         });
     }
 }
